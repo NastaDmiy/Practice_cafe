@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Панель управления Cafe Management</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <style>
+        body { background-color: #f8f9fa; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .navbar-brand { font-weight: bold; letter-spacing: 1px; }
+        .card { border: none; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 25px; }
+        .card-header { background-color: #fff; border-bottom: 1px solid #edf2f9; font-weight: bold; font-size: 1.1rem; padding: 15px 20px; border-radius: 12px 12px 0 0 !important; }
+        .status-badge { font-size: 0.85rem; padding: 6px 12px; border-radius: 30px; font-weight: 500; }
+        .table th { font-weight: 600; color: #495057; background-color: #f1f3f5; }
+        .dish-tag { background: #e9ecef; padding: 2px 8px; border-radius: 4px; font-size: 0.9rem; margin-right: 5px; display: inline-block; }
+        .btn-action { padding: 2px 6px; font-size: 0.85rem; }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top shadow-sm">
+        <div class="container">
+            <a class="navbar-brand" href="#"><i class="fa-solid fa-utensils me-2"></i> CAFE MANAGEMENT SYS</a>
+        </div>
+    </nav>
+
+    <div class="container my-4">
+
+        <div class="card">
+            <div class="card-header text-primary d-flex justify-content-between align-items-center">
+                <span><i class="fa-solid fa-bell me-2"></i> Текущие заказы в системе</span>
+                <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addOrderModal">
+                    <i class="fa-solid fa-plus me-1"></i> Новый заказ
+                </button>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th class="ps-4">ID</th>
+                                <th>Стол</th>
+                                <th>Время</th>
+                                <th>Официант</th>
+                                <th>Состав заказа</th>
+                                <th>Статус</th>
+                                <th>Сумма</th>
+                                <th class="pe-4 text-end">Действие</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for order in orders %}
+                            <tr>
+                                <td class="ps-4 fw-bold">#{{ order.id }}</td>
+                                <td><span class="badge bg-secondary">Стол {{ order.table_number }}</span></td>
+                                <td class="text-muted">{{ order.created }}</td>
+                                <td><i class="fa-regular fa-user me-1 text-muted"></i> {{ order.employee_name or 'Не назначен' }}</td>
+                                <td>
+                                    {% for item in order.dishes %}
+                                    <span class="dish-tag">
+                                        {{ item.dish_name }} <small class="text-muted">x{{ item.quantity }}</small>
+                                    </span>
+                                    {% endfor %}
+                                </td>
+                                <td>
+                                    {% if order.status in ['Готовиться', 'Готовится'] %}
+                                        <span class="status-badge bg-warning-subtle text-warning"><i class="fa-solid fa-fire-burner me-1"></i> Готовится</span>
+                                    {% elif order.status == 'В зале' %}
+                                        <span class="status-badge bg-info-subtle text-info"><i class="fa-solid fa-couch me-1"></i> В зале</span>
+                                    {% else %}
+                                        <span class="status-badge bg-success-subtle text-success"><i class="fa-solid fa-check me-1"></i> Оплачено</span>
+                                    {% endif %}
+                                </td>
+                                <td class="fw-bold text-dark">{{ order.total_amount }} ₽</td>
+                                <td class="pe-4 text-end">
+                                    <form action="{{ url_for('delete_order', order_id=order.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Удалить этот заказ?');">
+                                        <button type="submit" class="btn btn-outline-danger btn-action"><i class="fa-solid fa-trash"></i></button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header text-success d-flex justify-content-between align-items-center">
+                        <span><i class="fa-solid fa-book-open me-2"></i> Меню ресторана</span>
+                        <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#addDishModal">
+                            <i class="fa-solid fa-plus me-1"></i> Добавить блюдо
+                        </button>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th class="ps-3">Название</th>
+                                        <th>Категория</th>
+                                        <th>Цена</th>
+                                        <th class="pe-3 text-end">Действие</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for dish in menu %}
+                                    <tr>
+                                        <td class="ps-3">
+                                            <div class="fw-bold">{{ dish.name }}</div>
+                                            <small class="text-muted">{{ dish.description }}</small>
+                                        </td>
+                                        <td><span class="badge bg-light text-dark border">{{ dish.category }}</span></td>
+                                        <td class="fw-bold text-success">{{ dish.price }} ₽</td>
+                                        <td class="pe-3 text-end">
+                                            <form action="{{ url_for('delete_dish', dish_id=dish.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Удалить блюдо из меню?');">
+                                                <button type="submit" class="btn btn-outline-danger btn-action"><i class="fa-solid fa-trash"></i></button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header text-dark d-flex justify-content-between align-items-center">
+                        <span><i class="fa-solid fa-chart-line me-2"></i> Персонал и статистика</span>
+                        <button class="btn btn-sm btn-dark" data-bs-toggle="modal" data-bs-target="#addEmployeeModal">
+                            <i class="fa-solid fa-plus me-1"></i> Добавить сотрудника
+                        </button>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th class="ps-3">Сотрудник</th>
+                                        <th>Должность / Оклад</th>
+                                        <th>Заказов / Выручка</th>
+                                        <th class="pe-3 text-end">Действие</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for row in stats %}
+                                    <tr>
+                                        <td class="ps-3 fw-bold">{{ row.full_name }}</td>
+                                        <td>
+                                            <span class="text-muted d-block" style="font-size: 0.9rem;">{{ row.position }}</span>
+                                            <small class="text-success">{{ row.salary }} ₽</small>
+                                        </td>
+                                        <td>
+                                            <span class="badge rounded-pill bg-primary">Заказов: {{ row.orders_count }}</span>
+                                            <small class="d-block text-muted fw-bold">{{ row.revenue }} ₽</small>
+                                        </td>
+                                        <td class="pe-3 text-end">
+                                            <form action="{{ url_for('delete_employee', emp_id=row.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Удалить сотрудника?');">
+                                                <button type="submit" class="btn btn-outline-danger btn-action"><i class="fa-solid fa-trash"></i></button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="addOrderModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <form action="{{ url_for('add_order') }}" method="POST" class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Создать новый заказ</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Номер стола</label>
+                        <input type="number" name="table_number" class="form-control" required min="1" max="50">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Официант</label>
+                        <select name="employee_id" class="form-select" required>
+                            {% for emp in employees %}
+                                <option value="{{ emp.id }}">{{ emp.full_name }} ({{ emp.position }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Блюдо</label>
+                        <select name="dish_id" class="form-select" required>
+                            {% for dish in menu %}
+                                <option value="{{ dish.id }}">{{ dish.name }} — {{ dish.price }} ₽</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Количество</label>
+                        <input type="number" name="quantity" class="form-control" value="1" min="1" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn btn-primary">Создать</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal fade" id="addDishModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <form action="{{ url_for('add_dish') }}" method="POST" class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Добавить позицию в меню</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Название блюда</label>
+                        <input type="text" name="name" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Категория</label>
+                        <select name="category" class="form-select" required>
+                            <option>Салаты</option>
+                            <option>Супы</option>
+                            <option>Горячее</option>
+                            <option>Напитки</option>
+                            <option>Десерты</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Цена (₽)</label>
+                        <input type="number" name="price" class="form-control" required min="1">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Описание</label>
+                        <textarea name="description" class="form-control" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn btn-success">Добавить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal fade" id="addEmployeeModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <form action="{{ url_for('add_employee') }}" method="POST" class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Новый сотрудник</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">ФИО сотрудника</label>
+                        <input type="text" name="full_name" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Должность</label>
+                        <input type="text" name="position" class="form-control" placeholder="Повар, Официант и т.д." required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Оклад (₽)</label>
+                        <input type="number" name="salary" class="form-control" required min="0">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn btn-dark">Оформить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
